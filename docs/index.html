@@ -1,0 +1,45 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Control vs Experiment POC</title>
+<style>
+body{font-family:system-ui,sans-serif;margin:16px}
+ table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:6px;vertical-align:top}
+ .set{border-collapse:collapse;width:100%;font-size:.9em;margin-bottom:4px}
+ .set th,.set td{border:1px solid #aaa;padding:2px 4px}.set th{background:#eee}
+ .control{background:#f9c7c7}.experiment{background:#b7f5b7}.ctr{text-align:right;white-space:nowrap}
+ .pos{color:#138000;font-weight:600}.neg{color:#b00000;font-weight:600}
+ .hide{display:none}
+ .controls{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:8px}
+.controls label{display:flex;align-items:center;gap:4px}
+.controls input[type=number]{width:60px}
+ .search input{width:200px}
+.controls select[multiple]{height:2.4em}
+.controls input.dial{width:40px}
+.controls input.dial::-webkit-slider-thumb{appearance:none;width:14px;height:14px;border-radius:50%;background:#777}
+.controls input.dial.true::-webkit-slider-thumb{background:#138000}
+.controls input.dial.false::-webkit-slider-thumb{background:#b00000}
+.controls input.dial.any::-webkit-slider-thumb{background:#777}
+.controls input.dial{appearance:none;background:#ccc;height:4px;border-radius:2px;padding:0;margin:0}
+.result-img{width:60px;height:60px;object-fit:cover;display:block;margin-bottom:2px}
+</style>
+</head>
+<body>
+<h1>Search Results – <span id="ctrlName">CTRL</span> (Control) vs <span id="expName">EXP</span> (Experiment)</h1>
+<input type="file" id="csv" accept=".csv" required><br>
+<div class="controls">
+ <label class="search">🔍 <input id="q" placeholder="search…"></label>
+ <label>CTR <span id="ctrlNameFilter">CTRL</span> <select id="ctrlOp"><option value=">=" selected>&ge;</option><option value="<=">&le;</option></select><input id="ctrl" type="number"></label>
+ <label>CTR <span id="expNameFilter">EXP</span> <select id="expOp"><option value=">=" selected>&ge;</option><option value="<=">&le;</option></select><input id="exp" type="number"></label>
+ <label>Δ <select id="dOp"><option value=">=" selected>&ge;</option><option value="<=">&le;</option></select><input id="d" type="number"></label>
+  <label>Large gap <input id="lg" class="dial" type="range" min="-1" max="1" step="1" value="0"></label>
+  <label>Meaningful change<input id="mc" class="dial" type="range" min="-1" max="1" step="1" value="0"></label>
+  <label>P1 change<input id="p1" class="dial" type="range" min="-1" max="1" step="1" value="0"></label>
+ <button id="clear">clear</button>
+</div>
+<div id="pager" style="margin:8px 0">Scroll for more results</div>
+<table id="tbl"><thead><tr><th>Query</th><th>CTR</th><th>Set 1 & 2</th></tr></thead><tbody></tbody></table>
+<script src="script.js"></script>
+</body>
+</html>

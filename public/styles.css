@@ -1,0 +1,28 @@
+
+body{font-family:system-ui,sans-serif;margin:20px;}
+table{border-collapse:collapse;width:100%;}
+th,td{border:1px solid #ccc;padding:6px;vertical-align:top;}
+tr.unchanged{opacity:.4;}
+.pos          { color:#138000; font-weight:600; }
+.neg          { color:#b00000; font-weight:600; }
+.control-diff { background:#f9c7c7; }
+.experiment-diff { background:#b7f5b7; }
+.child td:nth-child(3){
+    border:none;          /* no 1-pixel grey frame */
+    padding:0;            /* let the nested table sit flush          */
+    vertical-align:top;   /* keep Set1 / Set2 tables top-aligned     */
+  }
+  
+  /* 2. remove the extra horizontal rule that appears *between*
+        the Set 1 and Set 2 child rows (keep bottom border of whole set) */
+.child + .child td:nth-child(3){
+  border-top:none;
+}
+
+.controls select[multiple]{height:2.4em;}
+  
+  /* 3. optional: tighten the nested table itself so its own
+        inner grid is the only visible border work */
+  .set{
+    margin:0;             /* kill default (if any) vertical spacing  */
+  }
