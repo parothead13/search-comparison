@@ -37,10 +37,10 @@ const esc = s => (s||'').replace(/&/g,'&amp;')
                         .replace(/>/g,'&gt;');
 const pct = n => `${n.toFixed(2)}%`;
 const asPct = raw=>{
-  let n = parseFloat(String(raw||'').replace('%',''));
+  let n = parseFloat(String(raw || '').replace('%', ''));
   if (!isFinite(n)) return 0;
-  if (n < 0.1) n *= 1e4; else if (n <= 1) n *= 100;
-  return n;
+  if (n > 1) return n;   // already a percentage like 5 or 75
+  return n * 100;         // convert fraction to percent
 };
 const delta = (du,bk)=>{
   const d = du - bk; if (!isFinite(d)||d===0) return '0';
