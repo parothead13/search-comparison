@@ -49,6 +49,23 @@ const delta = (du,bk)=>{
 const joinText = o => [o?.title?.replace('NA',''),
                        o?.type && !o.type.includes('NA') ? `(${o.type})` : '']
                       .filter(Boolean).join(' ');
+
+const generateTagColor = (tag) => {
+  // Generate a consistent color for each tag based on its hash
+  let hash = 0;
+  for (let i = 0; i < tag.length; i++) {
+    hash = tag.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const hue = Math.abs(hash) % 360;
+  return `hsl(${hue}, 70%, 85%)`;
+};
+
+const renderTagIcons = (tags) => {
+  if (!tags || tags.length === 0) return '';
+  return tags.map(tag => 
+    `<span class="tag-icon" data-tag="${esc(tag)}" style="background-color: ${generateTagColor(tag)}" title="Filter by ${esc(tag)}">${esc(tag)}</span>`
+  ).join('');
+};
 const cellHtml = o => {
   const txt  = esc(joinText(o));
   const img  = (o.img && !o.img.includes('NA'))
@@ -64,6 +81,14 @@ function parseCsv(file){
   return new Promise((res,rej)=>{
     const out=[];
     let prefixes=[];
+    let totalRawLines = 0;
+    let parsedRows = 0;
+    
+    // Count total lines in file first
+    const rawContent = fs.readFileSync(file, 'utf8');
+    totalRawLines = rawContent.split(/\r?\n/).filter(line => line.trim()).length;
+    console.log(`CSV Debug: Total lines in file: ${totalRawLines}`);
+    
     fs.createReadStream(file)
       .pipe(csv())
       .on('headers', hdrs => {
@@ -79,8 +104,16 @@ function parseCsv(file){
           prefixes = [...seen];
         }
       })
-      .on('data',r=>out.push(r))
+      .on('data',r=>{
+        parsedRows++;
+        out.push(r);
+      })
       .on('end',()=>{
+        console.log(`CSV Debug: Parsed rows: ${parsedRows}, Output records: ${out.length}`);
+        console.log(`CSV Debug: Expected ${totalRawLines - 1} data rows (minus header), got ${out.length}`);
+        if (totalRawLines - 1 !== out.length) {
+          console.log(`CSV Debug: WARNING - Row count mismatch! Missing ${(totalRawLines - 1) - out.length} rows`);
+        }
         const [CTRL,EXP] = prefixes;
         if(!CTRL||!EXP) return rej(new Error('CSV must contain two CTR_* or *_set1_* columns'));
         CTRL_PREFIX = CTRL;
@@ -97,6 +130,7 @@ function parseCsv(file){
           largeGap: bool(r.large_gap),
           meaningfulChange: bool(r.meaningful_change),
           set1P1Change: bool(r.set1_p1_change),
+          tags: r.tags ? r.tags.split(',').map(t => t.trim()).filter(t => t && t !== 'NA') : [],
           titlesCtrl:{set1:r[`${CTRL}_set1_title`]||'',
                       set2:r[`${CTRL}_set2_title`]||''},
           titlesExp :{set1:r[`${EXP}_set1_title`]||'',
@@ -121,6 +155,19 @@ function parseCsv(file){
           });
           return rec;
         }).sort((a,b)=>b.clicks-a.clicks);
+        console.log(`CSV Debug: Final processed records: ${recs.length}`);
+        if (recs.length > 0) {
+          console.log(`CSV Debug: First record sample:`, {
+            key: recs[0].key,
+            clicks: recs[0].clicks,
+            ctrCtrl: recs[0].ctrCtrl,
+            ctrExp: recs[0].ctrExp,
+            largeGap: recs[0].largeGap,
+            meaningfulChange: recs[0].meaningfulChange,
+            set1P1Change: recs[0].set1P1Change,
+            tags: recs[0].tags
+          });
+        }
         res(recs);
       })
       .on('error',rej);
@@ -129,12 +176,29 @@ function parseCsv(file){
 
 /* in-memory dataset */
 let DATA = [];
+let ALL_TAGS = [];
+let QUERY_LENGTH_RANGE = { min: 0, max: 200 };
 
 /* upload */
 app.post('/upload', upload.single('csvFile'), (req,res)=>{
   if (!req.file) return res.send('No file');
   parseCsv(req.file.path)
-    .then(r => { DATA = r; res.redirect('/'); })
+    .then(r => { 
+      DATA = r; 
+      // Extract all unique tags
+      const tagSet = new Set();
+      r.forEach(rec => rec.tags.forEach(tag => tagSet.add(tag)));
+      ALL_TAGS = [...tagSet].sort();
+      
+      // Calculate query length range
+      const queryLengths = r.map(rec => rec.key.length);
+      QUERY_LENGTH_RANGE = {
+        min: Math.min(...queryLengths),
+        max: Math.max(...queryLengths)
+      };
+      
+      res.redirect('/'); 
+    })
     .catch(e => res.send('Parse error: '+e.message));
 });
 
@@ -166,10 +230,12 @@ app.get('/', (_,res)=>{
     const rowsHtml = DATA.map((r,i)=>`
     <tr class="parent hide" data-rowid="${i}"
       data-ctrl="${r.ctrCtrl}" data-exp="${r.ctrExp}"
-      data-d="${(r.ctrExp-r.ctrCtrl).toFixed(2)}"
+      data-d="${isFinite(r.ctrExp-r.ctrCtrl) ? (r.ctrExp-r.ctrCtrl).toFixed(2) : '0'}"
+      data-clicks="${r.clicks}"
+      data-tags="${r.tags.join(',')}"
       data-lg="${r.largeGap}" data-mc="${r.meaningfulChange}"
       data-p1="${r.set1P1Change}">
-      <td>${esc(r.key)}</td>
+      <td>${esc(r.key)}<br><div class="tag-icons">${renderTagIcons(r.tags)}</div></td>
       <td class=ctr>total clicks: ${r.clicks.toLocaleString()}<br>
                      ${CTRL_PREFIX} ${pct(r.ctrCtrl)}<br>${EXP_PREFIX} ${pct(r.ctrExp)}<br>
                      ${delta(r.ctrExp,r.ctrCtrl)}</td>
@@ -218,6 +284,82 @@ th,td{border:1px solid #ccc;padding:6px;vertical-align:top}
   .set{
     margin:0;             /* kill default (if any) vertical spacing  */
   }
+  
+  /* Tags dropdown styling */
+  .tags-filter { display: flex; align-items: center; gap: 8px; }
+  .tags-dropdown { position: relative; display: inline-block; }
+  .tags-button { 
+    background: #fff; border: 1px solid #ccc; padding: 4px 8px; 
+    cursor: pointer; border-radius: 3px; min-width: 100px; text-align: left;
+  }
+  .tags-button:hover { background: #f5f5f5; }
+  .tags-dropdown-content { 
+    display: none; position: absolute; top: 100%; left: 0; 
+    background: #fff; border: 1px solid #ccc; border-radius: 3px; 
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1); z-index: 1000; 
+    min-width: 150px; max-height: 200px; overflow-y: auto;
+  }
+  .tags-dropdown-content.show { display: block; }
+  .tags-dropdown-content label { 
+    display: block; padding: 6px 12px; cursor: pointer; 
+    border-bottom: 1px solid #eee; white-space: nowrap;
+  }
+  .tags-dropdown-content label:hover { background: #f5f5f5; }
+  .tags-dropdown-content label:last-child { border-bottom: none; }
+  .selected-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+  .tag-pill { 
+    background: #e1f5fe; border: 1px solid #0277bd; border-radius: 12px; 
+    padding: 2px 8px; font-size: 0.85em; cursor: pointer; 
+  }
+  .tag-pill:hover { background: #b3e5fc; }
+  
+  /* Query length range slider styling */
+  .query-length-filter { display: flex; align-items: center; gap: 8px; }
+  .range-slider { position: relative; width: 200px; height: 20px; }
+  .range-track { 
+    position: absolute; top: 50%; left: 0; right: 0; height: 4px; 
+    background: #ddd; border-radius: 2px; transform: translateY(-50%); 
+  }
+  .range-fill { 
+    position: absolute; height: 100%; background: #0277bd; 
+    border-radius: 2px; 
+  }
+  .range-min, .range-max { 
+    position: absolute; width: 100%; height: 100%; 
+    background: transparent; pointer-events: none; 
+    -webkit-appearance: none; appearance: none; 
+  }
+  .range-min::-webkit-slider-thumb, .range-max::-webkit-slider-thumb { 
+    width: 16px; height: 16px; border-radius: 50%; background: #0277bd; 
+    border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.3); 
+    cursor: pointer; pointer-events: auto; -webkit-appearance: none; 
+  }
+  .range-min::-moz-range-thumb, .range-max::-moz-range-thumb { 
+    width: 16px; height: 16px; border-radius: 50%; background: #0277bd; 
+    border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.3); 
+    cursor: pointer; pointer-events: auto; 
+  }
+  .range-values { 
+    font-size: 0.85em; color: #666; white-space: nowrap; 
+  }
+  
+  /* Tag icons styling */
+  .tag-icons { 
+    margin-top: 4px; display: flex; flex-wrap: wrap; gap: 3px; 
+  }
+  .tag-icon { 
+    display: inline-block; padding: 2px 6px; border-radius: 10px; 
+    font-size: 0.75em; font-weight: 500; cursor: pointer; 
+    border: 1px solid rgba(0,0,0,0.2); transition: all 0.2s ease; 
+    white-space: nowrap; 
+  }
+  .tag-icon:hover { 
+    transform: translateY(-1px); box-shadow: 0 2px 4px rgba(0,0,0,0.2); 
+    border-color: rgba(0,0,0,0.4); 
+  }
+  .tag-icon:active { 
+    transform: translateY(0); box-shadow: 0 1px 2px rgba(0,0,0,0.2); 
+  }
 </style></head><body>
 <h1>Search Results – ${CTRL_PREFIX} (Control) vs ${EXP_PREFIX} (Experiment)</h1>
 <form action="/upload" method=post enctype=multipart/form-data>
@@ -235,7 +377,34 @@ th,td{border:1px solid #ccc;padding:6px;vertical-align:top}
   <label>Large gap <input id=lg class=dial type=range min=-1 max=1 step=1 value=0></label>
   <label>Meaningful change <input id=mc class=dial type=range min=-1 max=1 step=1 value=0></label>
   <label>P1 change <input id=p1 class=dial type=range min=-1 max=1 step=1 value=0></label>
+  <div class="tags-filter">
+    <label>Tags</label>
+    <div class="tags-dropdown">
+      <button id="tags-btn" class="tags-button">Select Tags ▼</button>
+      <div id="tags-dropdown" class="tags-dropdown-content">
+        ${ALL_TAGS.map(tag => `<label><input type="checkbox" value="${esc(tag)}" class="tag-checkbox"> ${esc(tag)}</label>`).join('')}
+      </div>
+    </div>
+    <div id="selected-tags" class="selected-tags"></div>
+  </div>
+  <div class="query-length-filter">
+    <label>Query Length</label>
+    <div class="range-slider">
+      <div class="range-track">
+        <div class="range-fill"></div>
+      </div>
+      <input type="range" id="query-min" class="range-min" min="${QUERY_LENGTH_RANGE.min}" max="${QUERY_LENGTH_RANGE.max}" value="${QUERY_LENGTH_RANGE.min}">
+      <input type="range" id="query-max" class="range-max" min="${QUERY_LENGTH_RANGE.min}" max="${QUERY_LENGTH_RANGE.max}" value="${QUERY_LENGTH_RANGE.max}">
+    </div>
+    <div class="range-values">
+      <span id="query-min-value">${QUERY_LENGTH_RANGE.min}</span> - <span id="query-max-value">${QUERY_LENGTH_RANGE.max}</span> chars
+    </div>
+  </div>
   <button id=clear>clear</button>
+</div>
+<div id=cumulative-ctr style="margin:16px 0;padding:12px;border:1px solid #ddd;background:#f9f9f9;border-radius:4px">
+  <h3 style="margin:0 0 8px 0">Cumulative CTR Analysis</h3>
+  <div id=ctr-summary style="font-size:0.9em;color:#666">Computing...</div>
 </div>
 <div id=pager style="margin:8px 0">Scroll for more results</div>
 <table id=tbl><thead>

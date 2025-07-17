@@ -1,0 +1,85 @@
+http://localhost:8080
+CSV Debug: Total lines in file: 2
+CSV Debug: Parsed rows: 1, Output records: 1
+CSV Debug: Expected 1 data rows (minus header), got 1
+CSV Debug: Final processed records: 1
+CSV Debug: First record sample: {
+  key: 'the five',
+  clicks: 385,
+  ctrCtrl: 87.3333333333333,
+  ctrExp: 42.3529411764706,
+  largeGap: true,
+  meaningfulChange: true,
+  set1P1Change: true,
+  tags: [ 'podcast', 'show', 'multiple_types' ]
+}
+CSV Debug: Total lines in file: 2
+CSV Debug: Parsed rows: 1, Output records: 1
+CSV Debug: Expected 1 data rows (minus header), got 1
+CSV Debug: Final processed records: 1
+CSV Debug: First record sample: {
+  key: 'the five',
+  clicks: 385,
+  ctrCtrl: 87.3333333333333,
+  ctrExp: 42.3529411764706,
+  largeGap: true,
+  meaningfulChange: true,
+  set1P1Change: true,
+  tags: [ 'podcast', 'show', 'multiple_types' ]
+}
+CSV Debug: Total lines in file: 2
+CSV Debug: Parsed rows: 1, Output records: 1
+CSV Debug: Expected 1 data rows (minus header), got 1
+CSV Debug: Final processed records: 1
+CSV Debug: First record sample: {
+  key: 'the five',
+  clicks: 385,
+  ctrCtrl: 87.3333333333333,
+  ctrExp: 42.3529411764706,
+  largeGap: true,
+  meaningfulChange: true,
+  set1P1Change: true,
+  tags: [ 'podcast', 'show', 'multiple_types' ]
+}
+CSV Debug: Total lines in file: 2
+CSV Debug: Parsed rows: 1, Output records: 1
+CSV Debug: Expected 1 data rows (minus header), got 1
+CSV Debug: Final processed records: 1
+CSV Debug: First record sample: {
+  key: 'the five',
+  clicks: 385,
+  ctrCtrl: 87.3333333333333,
+  ctrExp: 42.3529411764706,
+  largeGap: true,
+  meaningfulChange: true,
+  set1P1Change: true,
+  tags: [ 'podcast', 'show', 'multiple_types' ]
+}
+CSV Debug: Total lines in file: 2
+CSV Debug: Parsed rows: 1, Output records: 1
+CSV Debug: Expected 1 data rows (minus header), got 1
+CSV Debug: Final processed records: 1
+CSV Debug: First record sample: {
+  key: 'the five',
+  clicks: 385,
+  ctrCtrl: 87.3333333333333,
+  ctrExp: 42.3529411764706,
+  largeGap: true,
+  meaningfulChange: true,
+  set1P1Change: true,
+  tags: [ 'podcast', 'show', 'multiple_types' ]
+}
+CSV Debug: Total lines in file: 242
+CSV Debug: Parsed rows: 241, Output records: 241
+CSV Debug: Expected 241 data rows (minus header), got 241
+CSV Debug: Final processed records: 241
+CSV Debug: First record sample: {
+  key: 'fox',
+  clicks: 4038,
+  ctrCtrl: 95.0174825174825,
+  ctrExp: 93.0693069306931,
+  largeGap: false,
+  meaningfulChange: true,
+  set1P1Change: false,
+  tags: []
+}
