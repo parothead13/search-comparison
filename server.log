@@ -83,3 +83,17 @@ CSV Debug: First record sample: {
   set1P1Change: false,
   tags: []
 }
+CSV Debug: Total lines in file: 1087
+CSV Debug: Parsed rows: 1086, Output records: 1086
+CSV Debug: Expected 1086 data rows (minus header), got 1086
+CSV Debug: Final processed records: 1086
+CSV Debug: First record sample: {
+  key: 'crime junkie',
+  clicks: 174,
+  ctrCtrl: 88.7640449,
+  ctrExp: 7.0588235,
+  largeGap: true,
+  meaningfulChange: true,
+  set1P1Change: true,
+  tags: [ 'podcast', 'show', 'multiple_types' ]
+}

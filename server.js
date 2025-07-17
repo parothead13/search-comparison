@@ -76,6 +76,17 @@ const cellHtml = o => {
   return `${open}${img}${txt}${close}`;
 };
 
+const entityHtml = entity => {
+  const txt = esc(entity.name) + (entity.type ? ` (${esc(entity.type)})` : '');
+  const percentage = `${entity.percentage.toFixed(1)}%`;
+  const img = (entity.img && !entity.img.includes('NA')) 
+              ? `<img src="${esc(entity.img)}" class="entity-img">`
+              : '';
+  const open = entity.url ? `<a href="${esc(entity.url)}" target="_blank">` : '';
+  const close = entity.url ? '</a>' : '';
+  return `${open}${img}${txt}${close}<br><small>${percentage} of searches</small>`;
+};
+
 /* csv → records */
 function parseCsv(file){
   return new Promise((res,rej)=>{
@@ -122,9 +133,59 @@ function parseCsv(file){
           const key    = r.search_string || r.id || r.query || '(blank)';
           const clicks = +r[TOTAL_CLICKS_COL] || 0;
         const bool = v => String(v).toLowerCase()==='true';
+        const searchCount = +r.search_count || 0;
+        const entities = [];
+        
+        // Helper function to find image for entity ID
+        const findImageForEntity = (entityId) => {
+          if (!entityId || entityId === 'NA') return '';
+          
+          // Check all result images to see if any match this entity ID
+          const resultFields = ['Ctrl_set1_result1', 'Ctrl_set1_result2', 'Ctrl_set1_result3', 
+                               'Ctrl_set2_result1', 'Ctrl_set2_result2', 'Ctrl_set2_result3',
+                               'Exp_set1_result1', 'Exp_set1_result2', 'Exp_set1_result3',
+                               'Exp_set2_result1', 'Exp_set2_result2', 'Exp_set2_result3'];
+          
+          for (const field of resultFields) {
+            const resultId = r[`${field}_id`];
+            const resultImg = r[`${field}_img`];
+            if (resultId === entityId && resultImg && resultImg !== 'NA') {
+              return resultImg;
+            }
+          }
+          
+          return '';
+        };
+
+        // Parse entity data (up to 5 entities)
+        for (let i = 1; i <= 5; i++) {
+          const entityName = r[`top${i}_entity_name`];
+          const entityType = r[`top${i}_entity_type`];
+          const entityId = r[`top${i}_entity_id`];
+          const entityHyperlink = r[`top${i}_entity_id_hyperlink`];
+          const clickCount = +r[`top${i}_click_count`] || 0;
+          
+          if (entityName && entityName !== 'NA' && clickCount > 0) {
+            entities.push({
+              name: entityName,
+              type: entityType && entityType !== 'NA' ? entityType : '',
+              id: entityId && entityId !== 'NA' ? entityId : '',
+              url: entityHyperlink && entityHyperlink !== 'NA' ? entityHyperlink : '',
+              img: findImageForEntity(entityId),
+              clickCount,
+              percentage: searchCount > 0 ? (clickCount / searchCount * 100) : 0
+            });
+          }
+        }
+        
+        // Sort entities by click count (descending)
+        entities.sort((a, b) => b.clickCount - a.clickCount);
+        
         const rec = {
           key,
           clicks,
+          searchCount,
+          entities,
           ctrCtrl: asPct(r[`CTR_${CTRL}`]),
           ctrExp : asPct(r[`CTR_${EXP}`]),
           largeGap: bool(r.large_gap),
@@ -239,6 +300,7 @@ app.get('/', (_,res)=>{
       <td class=ctr>total clicks: ${r.clicks.toLocaleString()}<br>
                      ${CTRL_PREFIX} ${pct(r.ctrCtrl)}<br>${EXP_PREFIX} ${pct(r.ctrExp)}<br>
                      ${delta(r.ctrExp,r.ctrCtrl)}</td>
+      <td class="entities-column">${r.entities.length > 0 ? r.entities.map(entityHtml).join('<br><br>') : 'No entity data'}</td>
       <td>${setTbl('set1',r)}${setTbl('set2',r)}</td>
     </tr>`).join('');
 
@@ -249,7 +311,7 @@ body{font-family:system-ui,sans-serif;margin:16px}
 table{border-collapse:collapse;width:100%}
 th,td{border:1px solid #ccc;padding:6px;vertical-align:top}
 .result-img{width:60px;height:60px;object-fit:cover;display:block;margin-bottom:2px}
-.parent>td:nth-child(3){padding:0;}      /* empty cell in parent row   */
+.parent>td:nth-child(4){padding:0;}      /* results cell in parent row   */
 .set{border-collapse:collapse;width:100%;font-size:.9em}
 .set th,.set td{border:1px solid #aaa;padding:2px 4px}
 .set th{background:#eee}
@@ -267,7 +329,7 @@ th,td{border:1px solid #ccc;padding:6px;vertical-align:top}
   .controls input.dial.true::-webkit-slider-thumb{background:#138000}
   .controls input.dial.false::-webkit-slider-thumb{background:#b00000}
   .controls input.dial.any::-webkit-slider-thumb{background:#777}
-  .child td:nth-child(3){
+  .child td:nth-child(4){
     border:none;          /* no 1-pixel grey frame */
     padding:0;            /* let the nested table sit flush          */
     vertical-align:top;   /* keep Set1 / Set2 tables top-aligned     */
@@ -275,7 +337,7 @@ th,td{border:1px solid #ccc;padding:6px;vertical-align:top}
   
   /* 2. remove the extra horizontal rule that appears *between*
         the Set 1 and Set 2 child rows (keep bottom border of whole set) */
-  .child + .child td:nth-child(3){
+  .child + .child td:nth-child(4){
     border-top:none;
   }
   
@@ -283,6 +345,33 @@ th,td{border:1px solid #ccc;padding:6px;vertical-align:top}
         inner grid is the only visible border work */
   .set{
     margin:0;             /* kill default (if any) vertical spacing  */
+  }
+  
+  /* Entities column styling */
+  .entities-column {
+    width: 200px;
+    font-size: 0.9em;
+    line-height: 1.3;
+  }
+  .entities-column a {
+    color: #0066cc;
+    text-decoration: none;
+  }
+  .entities-column a:hover {
+    text-decoration: underline;
+  }
+  .entities-column small {
+    color: #666;
+    font-size: 0.85em;
+  }
+  .entity-img {
+    width: 40px;
+    height: 40px;
+    object-fit: cover;
+    display: inline-block;
+    margin-right: 8px;
+    vertical-align: middle;
+    border-radius: 4px;
   }
   
   /* Tags dropdown styling */
@@ -361,7 +450,7 @@ th,td{border:1px solid #ccc;padding:6px;vertical-align:top}
     transform: translateY(0); box-shadow: 0 1px 2px rgba(0,0,0,0.2); 
   }
 </style></head><body>
-<h1>Search Results – ${CTRL_PREFIX} (Control) vs ${EXP_PREFIX} (Experiment)</h1>
+<h1>Search Results – Control vs Experiment</h1>
 <form action="/upload" method=post enctype=multipart/form-data>
   <input type=file name=csvFile accept=".csv" required>
   <button>Load CSV</button>
@@ -408,7 +497,7 @@ th,td{border:1px solid #ccc;padding:6px;vertical-align:top}
 </div>
 <div id=pager style="margin:8px 0">Scroll for more results</div>
 <table id=tbl><thead>
-  <tr><th>Query</th><th>CTR</th><th>Set 1 & 2</th></tr>
+  <tr><th>Query</th><th>CTR</th><th>Most Clicked Entities</th><th>Set 1 & 2</th></tr>
 </thead><tbody>${rowsHtml}</tbody></table>
 <script src="/public/table-view.js"></script>
 </body></html>`);
